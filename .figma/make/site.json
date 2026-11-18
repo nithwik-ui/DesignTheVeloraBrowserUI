@@ -1,0 +1,10 @@
+{
+  "description": "A minimalist Windows-style browser for focused web browsing, with split-screen tabs, reader mode, bookmarks, downloads, and built-in privacy controls.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

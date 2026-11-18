@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+:root,
+.velora-light {
+  --v-frame: #f3f4f6;
+  --v-surface: #ffffff;
+  --v-surface-subtle: #f9fafb;
+  --v-surface-hover: #e9ecef;
+  --v-popover: #ffffff;
+  --v-border: #e5e7eb;
+  --v-popover-border: #e5e7eb;
+  --v-text: #111827;
+  --v-muted: #6b7280;
+  --v-accent: #2563eb;
+  --v-accent-soft: rgba(37, 99, 235, 0.1);
+  --v-privacy: #16a34a;
+  --v-privacy-soft: rgba(22, 163, 74, 0.1);
+  --v-omnibox: #f3f4f6;
+  --v-omnibox-focus: #ffffff;
+  --v-shadow-popover:
+    0 12px 32px -4px rgba(17, 24, 39, 0.12), 0 4px 12px -2px rgba(17, 24, 39, 0.06);
+}
+
+.velora-dark {
+  --v-frame: #0d0d0f;
+  --v-surface: #18181b;
+  --v-surface-subtle: #131316;
+  --v-surface-hover: #232329;
+  --v-popover: #222226;
+  --v-border: #2e2e34;
+  --v-popover-border: #2e2e34;
+  --v-text: #f4f4f5;
+  --v-muted: #a1a1aa;
+  --v-accent: #3b82f6;
+  --v-accent-soft: rgba(59, 130, 246, 0.16);
+  --v-privacy: #22c55e;
+  --v-privacy-soft: rgba(34, 197, 94, 0.14);
+  --v-omnibox: #121215;
+  --v-omnibox-focus: #222226;
+  --v-shadow-popover: 0 16px 38px -4px rgba(0, 0, 0, 0.55), 0 4px 14px -2px rgba(0, 0, 0, 0.4);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    font-family:
+      "Segoe UI Variable", "Segoe UI Variable Text", "Segoe UI Variable Display", "Segoe UI",
+      -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    background-color: var(--v-frame);
+    color: var(--v-text);
+  }
+
+  code,
+  pre,
+  .font-mono-ui {
+    font-family:
+      "Cascadia Code", "Cascadia Mono", "Segoe UI Mono", ui-monospace, SFMono-Regular, Menlo,
+      Consolas, monospace;
+  }
+
+  button {
+    cursor: pointer;
+  }
+}
+
+/* Subtle native-style thin scrollbars */
+*::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 138, 0.28);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 138, 0.45);
+}
