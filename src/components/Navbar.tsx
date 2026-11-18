@@ -16,22 +16,30 @@ import {
   Image as ImageIcon,
   Lock,
   Moon,
+  MoreVertical,
   RotateCw,
   Search,
-  Settings,
   ShieldCheck,
   Star,
   Sun,
 } from "lucide-react";
 import {
+  ActiveFeatureModal,
   AutocompleteItem,
+  BrowserProfile,
   BrowserTab,
   DownloadEntry,
+  HistoryEntry,
+  LibrarySection,
   ResolvedTheme,
   VeloraSettings,
+  WorkspaceId,
 } from "../types/velora";
 import { AUTOCOMPLETE_SUGGESTIONS } from "../data/mockData";
 import { OrbitLogo } from "./OrbitLogo";
+import { ProfileAvatar } from "./ProfileAvatar";
+import { ProfilePopover } from "./ProfilePopover";
+import { BrowserMoreMenu } from "./BrowserMoreMenu";
 
 interface NavbarProps {
   activeTab: BrowserTab;
@@ -43,8 +51,16 @@ interface NavbarProps {
   omniboxOpen: boolean;
   shieldPopoverOpen: boolean;
   downloadsPopoverOpen: boolean;
+  profilePopoverOpen: boolean;
+  moreMenuOpen: boolean;
   showcaseMultiPopoverMode: boolean;
   downloads: DownloadEntry[];
+  recentHistory: HistoryEntry[];
+  activeProfile: BrowserProfile;
+  profiles: BrowserProfile[];
+  incognitoMode: boolean;
+  pageZoom: number;
+  activeWorkspace: WorkspaceId;
   canGoBack: boolean;
   canGoForward: boolean;
   onBack: () => void;
@@ -54,10 +70,31 @@ interface NavbarProps {
   onSetOmniboxOpen: (open: boolean) => void;
   onToggleShieldPopover: () => void;
   onToggleDownloadsPopover: () => void;
+  onToggleProfilePopover: () => void;
+  onToggleMoreMenu: () => void;
+  onCloseMenus: () => void;
+  onSelectProfile: (profileId: string) => void;
+  onUpdateActiveProfile: (updates: Partial<BrowserProfile>) => void;
+  onAddProfile: (name: string, email: string, color: string) => void;
+  onNewTab: () => void;
+  onNewWindow: () => void;
+  onToggleIncognito: () => void;
+  onSelectWorkspace: (ws: WorkspaceId) => void;
+  onToggleVerticalTabs: () => void;
+  onSaveCurrentToShortcuts: () => void;
+  onChangeZoom: (zoom: number) => void;
+  onToggleFullscreen: () => void;
+  onPrint: () => void;
+  onToggleTranslateBar: () => void;
+  onOpenFindBar: () => void;
+  onCopyCurrentUrl: () => void;
+  onSavePageAsPdf: () => void;
+  onOpenFeatureModal: (modal: ActiveFeatureModal) => void;
+  onExitBrowser: () => void;
   onToggleSplitView: () => void;
   onToggleReaderView: () => void;
   onToggleBookmark: () => void;
-  onOpenLibrary: (section?: "bookmarks" | "history" | "recently-closed" | "downloads") => void;
+  onOpenLibrary: (section?: LibrarySection) => void;
   onOpenSettings: () => void;
   onOpenOnboarding: () => void;
   onQuickToggleTheme: () => void;
@@ -74,8 +111,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   omniboxOpen,
   shieldPopoverOpen,
   downloadsPopoverOpen,
+  profilePopoverOpen,
+  moreMenuOpen,
   showcaseMultiPopoverMode,
   downloads,
+  recentHistory,
+  activeProfile,
+  profiles,
+  incognitoMode,
+  pageZoom,
+  activeWorkspace,
   canGoBack,
   canGoForward,
   onBack,
@@ -85,6 +130,27 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSetOmniboxOpen,
   onToggleShieldPopover,
   onToggleDownloadsPopover,
+  onToggleProfilePopover,
+  onToggleMoreMenu,
+  onCloseMenus,
+  onSelectProfile,
+  onUpdateActiveProfile,
+  onAddProfile,
+  onNewTab,
+  onNewWindow,
+  onToggleIncognito,
+  onSelectWorkspace,
+  onToggleVerticalTabs,
+  onSaveCurrentToShortcuts,
+  onChangeZoom,
+  onToggleFullscreen,
+  onPrint,
+  onToggleTranslateBar,
+  onOpenFindBar,
+  onCopyCurrentUrl,
+  onSavePageAsPdf,
+  onOpenFeatureModal,
+  onExitBrowser,
   onToggleSplitView,
   onToggleReaderView,
   onToggleBookmark,
@@ -292,6 +358,25 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Inline Omnibox Pills: Privacy Shield Badge + Cloudflare 1.1.1.1 DNS Pill + Reader + Star */}
           <div className="flex items-center gap-1.5 shrink-0">
+            {pageZoom !== 100 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChangeZoom(100);
+                }}
+                title="Reset page zoom to 100%"
+                className="h-[20px] px-2 rounded-full text-[10.5px] font-mono-ui border"
+                style={{
+                  backgroundColor: "var(--v-surface)",
+                  borderColor: "var(--v-border)",
+                  color: "var(--v-accent)",
+                }}
+              >
+                {pageZoom}%
+              </button>
+            )}
+
             {/* Privacy Shield Badge */}
             <button
               type="button"
@@ -551,28 +636,46 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </button>
 
-        {/* First-Run Onboarding Trigger */}
+        {/* Account / Profile PFP Trigger */}
         <button
           type="button"
-          onClick={onOpenOnboarding}
-          title="About Velora & First-Run Setup"
-          className="w-[28px] h-[28px] rounded-[8px] flex items-center justify-center transition-colors hover:bg-black/5 dark:hover:bg-white/6"
-          style={{ color: "var(--v-muted)" }}
-        >
-          <OrbitLogo size={17} />
-        </button>
-
-        {/* Settings Page */}
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          title="Velora Settings (Ctrl+,)"
-          className="w-[28px] h-[28px] rounded-[8px] flex items-center justify-center transition-colors hover:bg-black/5 dark:hover:bg-white/6"
+          onClick={onToggleProfilePopover}
+          title={
+            incognitoMode
+              ? "Incognito Profile active — click to switch profile"
+              : `${activeProfile.name} (${activeProfile.email})`
+          }
+          aria-label="Account and profiles"
+          className={`h-[28px] ${
+            incognitoMode ? "px-2 gap-1.5" : "w-[28px]"
+          } rounded-full flex items-center justify-center transition-all border`}
           style={{
-            color: activeTab.kind === "settings" ? "var(--v-accent)" : "var(--v-text)",
+            backgroundColor: profilePopoverOpen ? "var(--v-accent-soft)" : "transparent",
+            borderColor: profilePopoverOpen ? "var(--v-accent)" : "transparent",
           }}
         >
-          <Settings className="w-3.5 h-3.5" strokeWidth={1.8} />
+          <ProfileAvatar profile={activeProfile} size={22} incognito={incognitoMode} />
+          {incognitoMode && (
+            <span className="text-[11px] font-medium pr-0.5" style={{ color: "var(--v-text)" }}>
+              Incognito
+            </span>
+          )}
+        </button>
+
+        {/* Vertical 3-Dots Browser More Menu Trigger */}
+        <button
+          type="button"
+          onClick={onToggleMoreMenu}
+          title="Customise and control Velora"
+          aria-label="Customise and control Velora"
+          className="w-[28px] h-[28px] rounded-[8px] flex items-center justify-center transition-colors border hover:bg-black/5 dark:hover:bg-white/6"
+          style={{
+            backgroundColor: moreMenuOpen ? "var(--v-accent-soft)" : "transparent",
+            borderColor: moreMenuOpen ? "var(--v-accent)" : "transparent",
+            color: moreMenuOpen ? "var(--v-accent)" : "var(--v-text)",
+          }}
+        >
+          <MoreVertical className="w-4 h-4" strokeWidth={1.9} />
         </button>
       </div>
 
@@ -824,6 +927,61 @@ export const Navbar: React.FC<NavbarProps> = ({
             ))}
           </div>
         </div>
+      )}
+
+      {/* Account & Profiles Popover */}
+      {profilePopoverOpen && (
+        <ProfilePopover
+          activeProfile={activeProfile}
+          profiles={profiles}
+          incognitoMode={incognitoMode}
+          onSelectProfile={onSelectProfile}
+          onUpdateActiveProfile={onUpdateActiveProfile}
+          onAddProfile={onAddProfile}
+          onToggleIncognito={onToggleIncognito}
+          onOpenFeatureModal={onOpenFeatureModal}
+          onClose={onCloseMenus}
+        />
+      )}
+
+      {/* Vertical 3-Dots Browser More Menu */}
+      {moreMenuOpen && (
+        <BrowserMoreMenu
+          activeProfile={activeProfile}
+          incognitoMode={incognitoMode}
+          pageZoom={pageZoom}
+          recentHistory={recentHistory}
+          activeWorkspace={activeWorkspace}
+          verticalTabs={settings.verticalTabs}
+          isBookmarked={isBookmarked}
+          onNewTab={onNewTab}
+          onNewWindow={onNewWindow}
+          onToggleIncognito={onToggleIncognito}
+          onSwitchToProfileMenu={() => {
+            onCloseMenus();
+            onToggleProfilePopover();
+          }}
+          onOpenLibrary={(sec) => onOpenLibrary(sec)}
+          onNavigateUrl={onNavigateUrl}
+          onSelectWorkspace={onSelectWorkspace}
+          onToggleVerticalTabs={onToggleVerticalTabs}
+          onToggleBookmark={onToggleBookmark}
+          onSaveCurrentToShortcuts={onSaveCurrentToShortcuts}
+          onChangeZoom={onChangeZoom}
+          onToggleFullscreen={onToggleFullscreen}
+          onPrint={onPrint}
+          onToggleTranslateBar={onToggleTranslateBar}
+          onOpenFindBar={onOpenFindBar}
+          onCopyCurrentUrl={onCopyCurrentUrl}
+          onSavePageAsPdf={onSavePageAsPdf}
+          onToggleSplitView={onToggleSplitView}
+          onToggleReaderView={onToggleReaderView}
+          onOpenFeatureModal={onOpenFeatureModal}
+          onOpenOnboarding={onOpenOnboarding}
+          onOpenSettings={onOpenSettings}
+          onExitBrowser={onExitBrowser}
+          onClose={onCloseMenus}
+        />
       )}
     </div>
   );

@@ -1,6 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, Languages, Search, X } from "lucide-react";
 import {
+  ActiveFeatureModal,
   BookmarkItem,
+  BrowserExtensionEntry,
+  BrowserProfile,
   BrowserTab,
   DownloadEntry,
   HistoryEntry,
@@ -9,6 +13,7 @@ import {
   ReaderPaperTheme,
   RecentlyClosedEntry,
   ResolvedTheme,
+  SavedPasswordEntry,
   ScreenPresetId,
   ShortcutTile,
   VeloraSettings,
@@ -18,7 +23,10 @@ import {
   DEFAULT_SHORTCUT_TILES,
   INITIAL_BOOKMARKS,
   INITIAL_DOWNLOADS,
+  INITIAL_EXTENSIONS,
   INITIAL_HISTORY,
+  INITIAL_PASSWORDS,
+  INITIAL_PROFILES,
   INITIAL_RECENTLY_CLOSED,
   INITIAL_TABS,
 } from "./data/mockData";
@@ -33,6 +41,7 @@ import { LibraryView } from "./components/LibraryView";
 import { SettingsView } from "./components/SettingsView";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { ShowcaseBar } from "./components/ShowcaseBar";
+import { BrowserFeatureDialogs } from "./components/BrowserFeatureDialogs";
 
 function parseUrlMetadata(
   url: string,
@@ -169,7 +178,38 @@ export default function App() {
   const [omniboxOpen, setOmniboxOpen] = useState<boolean>(false);
   const [shieldPopoverOpen, setShieldPopoverOpen] = useState<boolean>(false);
   const [downloadsPopoverOpen, setDownloadsPopoverOpen] = useState<boolean>(false);
+  const [profilePopoverOpen, setProfilePopoverOpen] = useState<boolean>(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState<boolean>(false);
   const [onboardingOpen, setOnboardingOpen] = useState<boolean>(false);
+  const [featureModal, setFeatureModal] = useState<ActiveFeatureModal>(null);
+
+  // Profiles, Incognito, Zoom, Find & Translate, Passwords & Extensions State
+  const [profiles, setProfiles] = useState<BrowserProfile[]>(INITIAL_PROFILES);
+  const [activeProfileId, setActiveProfileId] = useState<string>("prof-main");
+  const [incognitoMode, setIncognitoMode] = useState<boolean>(false);
+  const [pageZoom, setPageZoom] = useState<number>(100);
+  const [passwords, setPasswords] = useState<SavedPasswordEntry[]>(INITIAL_PASSWORDS);
+  const [extensions, setExtensions] = useState<BrowserExtensionEntry[]>(INITIAL_EXTENSIONS);
+  const [findBarOpen, setFindBarOpen] = useState<boolean>(false);
+  const [findQuery, setFindQuery] = useState<string>("");
+  const [translateBarOpen, setTranslateBarOpen] = useState<boolean>(false);
+  const [targetLang, setTargetLang] = useState<string>("English");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+  }, []);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => setToastMessage(null), 2600);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
+
+  const activeProfile = useMemo(
+    () => profiles.find((p) => p.id === activeProfileId) ?? profiles[0],
+    [profiles, activeProfileId],
+  );
 
   // Window & Showcase State
   const [isMaximized, setIsMaximized] = useState<boolean>(true);
@@ -240,6 +280,8 @@ export default function App() {
     setOmniboxOpen(false);
     setShieldPopoverOpen(false);
     setDownloadsPopoverOpen(false);
+    setProfilePopoverOpen(false);
+    setMoreMenuOpen(false);
     setShowcaseMultiPopoverMode(false);
   }, []);
 
@@ -419,20 +461,22 @@ export default function App() {
       if (pushHistory) {
         setNavStack((prev) => [...prev.slice(0, navIndex + 1), url]);
         setNavIndex((prev) => prev + 1);
-        setHistory((prev) => [
-          {
-            id: `hs-${Date.now()}`,
-            title: meta.title,
-            url,
-            domain: meta.domain,
-            visitedAt: "Just now",
-            dayGroup: "Today",
-          },
-          ...prev,
-        ]);
+        if (!incognitoMode) {
+          setHistory((prev) => [
+            {
+              id: `hs-${Date.now()}`,
+              title: meta.title,
+              url,
+              domain: meta.domain,
+              visitedAt: "Just now",
+              dayGroup: "Today",
+            },
+            ...prev,
+          ]);
+        }
       }
     },
-    [activeTab.id, closeAllPopovers, navIndex, openOrFocusInternalTab],
+    [activeTab.id, closeAllPopovers, incognitoMode, navIndex, openOrFocusInternalTab],
   );
 
   const handleBack = useCallback(() => {
@@ -508,6 +552,41 @@ export default function App() {
     },
     [activeTab.domain],
   );
+
+  // Keyboard Shortcuts matching the 3-Dots Menu hints
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === "t") {
+        e.preventDefault();
+        handleNewTab();
+      } else if (mod && e.shiftKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        setIncognitoMode((v) => {
+          const next = !v;
+          showToast(next ? "Incognito window active — history paused" : "Exited Incognito window");
+          return next;
+        });
+      } else if (mod && e.key.toLowerCase() === "j") {
+        e.preventDefault();
+        setLibrarySection("downloads");
+        openOrFocusInternalTab("library");
+      } else if (mod && e.key.toLowerCase() === "h") {
+        e.preventDefault();
+        setLibrarySection("history");
+        openOrFocusInternalTab("library");
+      } else if (mod && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setFindBarOpen(true);
+      } else if (mod && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        handleToggleBookmark();
+        showToast(isBookmarked ? "Removed bookmark" : "Bookmarked current tab");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleNewTab, handleToggleBookmark, isBookmarked, openOrFocusInternalTab, showToast]);
 
   // Direct 1-click preset transitions for all 8 required Velora screens & states
   const applyScreenPreset = useCallback(
@@ -717,8 +796,16 @@ export default function App() {
           omniboxOpen={omniboxOpen}
           shieldPopoverOpen={shieldPopoverOpen}
           downloadsPopoverOpen={downloadsPopoverOpen}
+          profilePopoverOpen={profilePopoverOpen}
+          moreMenuOpen={moreMenuOpen}
           showcaseMultiPopoverMode={showcaseMultiPopoverMode}
           downloads={downloads}
+          recentHistory={history}
+          activeProfile={activeProfile}
+          profiles={profiles}
+          incognitoMode={incognitoMode}
+          pageZoom={pageZoom}
+          activeWorkspace={activeWorkspace}
           canGoBack={navIndex > 0}
           canGoForward={navIndex < navStack.length - 1}
           onBack={handleBack}
@@ -731,19 +818,131 @@ export default function App() {
             if (open) {
               setShieldPopoverOpen(false);
               setDownloadsPopoverOpen(false);
+              setProfilePopoverOpen(false);
+              setMoreMenuOpen(false);
             }
           }}
           onToggleShieldPopover={() => {
             setShowcaseMultiPopoverMode(false);
             setOmniboxOpen(false);
             setDownloadsPopoverOpen(false);
+            setProfilePopoverOpen(false);
+            setMoreMenuOpen(false);
             setShieldPopoverOpen((v) => !v);
           }}
           onToggleDownloadsPopover={() => {
             setShowcaseMultiPopoverMode(false);
             setOmniboxOpen(false);
             setShieldPopoverOpen(false);
+            setProfilePopoverOpen(false);
+            setMoreMenuOpen(false);
             setDownloadsPopoverOpen((v) => !v);
+          }}
+          onToggleProfilePopover={() => {
+            setShowcaseMultiPopoverMode(false);
+            setOmniboxOpen(false);
+            setShieldPopoverOpen(false);
+            setDownloadsPopoverOpen(false);
+            setMoreMenuOpen(false);
+            setProfilePopoverOpen((v) => !v);
+          }}
+          onToggleMoreMenu={() => {
+            setShowcaseMultiPopoverMode(false);
+            setOmniboxOpen(false);
+            setShieldPopoverOpen(false);
+            setDownloadsPopoverOpen(false);
+            setProfilePopoverOpen(false);
+            setMoreMenuOpen((v) => !v);
+          }}
+          onCloseMenus={closeAllPopovers}
+          onSelectProfile={(profileId) => {
+            setIncognitoMode(false);
+            setActiveProfileId(profileId);
+            const chosen = profiles.find((p) => p.id === profileId);
+            if (chosen) {
+              showToast(`Switched profile to ${chosen.name}`);
+            }
+          }}
+          onUpdateActiveProfile={(updates) => {
+            setProfiles((prev) =>
+              prev.map((p) => (p.id === activeProfile.id ? { ...p, ...updates } : p)),
+            );
+            showToast("Profile updated");
+          }}
+          onAddProfile={(name, email, color) => {
+            const created: BrowserProfile = {
+              id: `prof-${Date.now()}`,
+              name,
+              email,
+              avatarType: "initial",
+              color,
+              initial: name.charAt(0).toUpperCase(),
+              syncEnabled: true,
+            };
+            setProfiles((prev) => [...prev, created]);
+            setActiveProfileId(created.id);
+            setIncognitoMode(false);
+            showToast(`Created and signed into ${name}`);
+          }}
+          onNewTab={handleNewTab}
+          onNewWindow={() => {
+            setIncognitoMode(false);
+            handleNewTab();
+            showToast("Opened fresh Velora browser window session");
+          }}
+          onToggleIncognito={() => {
+            setIncognitoMode((prev) => {
+              const next = !prev;
+              showToast(
+                next
+                  ? "Incognito window active — browsing history paused"
+                  : "Closed Incognito window",
+              );
+              return next;
+            });
+          }}
+          onSelectWorkspace={handleSelectWorkspace}
+          onToggleVerticalTabs={() => {
+            const next = !settings.verticalTabs;
+            updateSetting("verticalTabs", next);
+            setActivePreset(next ? "vertical-workspaces" : "main-split");
+          }}
+          onSaveCurrentToShortcuts={() => {
+            handleAddShortcut(activeTab.title, activeTab.url);
+            showToast(`Pinned "${activeTab.domain}" to New Tab shortcuts`);
+          }}
+          onChangeZoom={setPageZoom}
+          onToggleFullscreen={() => {
+            if (document.fullscreenElement) {
+              document.exitFullscreen().catch(() => {});
+            } else {
+              document.documentElement.requestFullscreen?.().catch(() => {
+                setIsMaximized((m) => !m);
+              });
+            }
+          }}
+          onPrint={() => window.print()}
+          onToggleTranslateBar={() => setTranslateBarOpen((t) => !t)}
+          onOpenFindBar={() => setFindBarOpen(true)}
+          onCopyCurrentUrl={() => {
+            navigator.clipboard?.writeText(activeTab.url).catch(() => {});
+            showToast(`Copied ${activeTab.url}`);
+          }}
+          onSavePageAsPdf={() => {
+            const safeName = `${activeTab.domain.replace(/[^a-z0-9.-]/gi, "_")}_Capture.pdf`;
+            handleTriggerDownload(safeName, "PDFs", "4.8 MB");
+            showToast(`Saved ${safeName} to Downloads/PDFs`);
+          }}
+          onOpenFeatureModal={(modal) => setFeatureModal(modal)}
+          onExitBrowser={() => {
+            if (incognitoMode) {
+              setIncognitoMode(false);
+              showToast("Closed Incognito session");
+            } else {
+              closeAllPopovers();
+              setPageZoom(100);
+              showToast("Session state saved cleanly to local encrypted store");
+            }
           }}
           onToggleSplitView={() => {
             closeAllPopovers();
@@ -790,7 +989,13 @@ export default function App() {
         <div
           className="relative flex-1 min-h-0 flex overflow-hidden"
           onClick={() => {
-            if (omniboxOpen || shieldPopoverOpen || downloadsPopoverOpen) {
+            if (
+              omniboxOpen ||
+              shieldPopoverOpen ||
+              downloadsPopoverOpen ||
+              profilePopoverOpen ||
+              moreMenuOpen
+            ) {
               closeAllPopovers();
             }
           }}
@@ -816,8 +1021,171 @@ export default function App() {
             />
           )}
 
-          <div className="flex-1 min-w-0 h-full overflow-hidden">{renderViewportContent()}</div>
+          <div className="relative flex-1 min-w-0 h-full overflow-hidden">
+            {/* Floating Find-in-Page Bar (Ctrl+F) */}
+            {findBarOpen && (
+              <div
+                className="absolute top-2.5 right-4 z-30 h-[36px] px-3 rounded-[8px] border flex items-center gap-2"
+                style={{
+                  backgroundColor: "var(--v-popover)",
+                  borderColor: "var(--v-popover-border)",
+                  boxShadow: "var(--v-shadow-popover)",
+                }}
+              >
+                <Search className="w-3.5 h-3.5" style={{ color: "var(--v-muted)" }} />
+                <input
+                  type="text"
+                  autoFocus
+                  value={findQuery}
+                  onChange={(e) => setFindQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setFindBarOpen(false);
+                  }}
+                  placeholder="Find in page…"
+                  className="w-40 bg-transparent text-[12px] outline-none"
+                  style={{ color: "var(--v-text)" }}
+                />
+                {findQuery.trim() && (
+                  <span className="text-[11px] font-mono-ui" style={{ color: "var(--v-muted)" }}>
+                    {activeTab.title.toLowerCase().includes(findQuery.trim().toLowerCase())
+                      ? "1/3"
+                      : "2 matches"}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFindBarOpen(false);
+                    setFindQuery("");
+                  }}
+                  className="w-5 h-5 rounded-[4px] flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/8"
+                  style={{ color: "var(--v-muted)" }}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+
+            {/* Floating Translate Page Bar */}
+            {translateBarOpen && (
+              <div
+                className="absolute top-2.5 left-4 z-30 h-[36px] px-3 rounded-[8px] border flex items-center gap-2.5 text-[12px]"
+                style={{
+                  backgroundColor: "var(--v-popover)",
+                  borderColor: "var(--v-popover-border)",
+                  boxShadow: "var(--v-shadow-popover)",
+                }}
+              >
+                <Languages className="w-3.5 h-3.5" style={{ color: "var(--v-accent)" }} />
+                <span>Translate page to:</span>
+                <select
+                  value={targetLang}
+                  onChange={(e) => {
+                    setTargetLang(e.target.value);
+                    showToast(`Page translated to ${e.target.value}`);
+                  }}
+                  className="h-[24px] px-2 rounded-[6px] border text-[11.5px] outline-none"
+                  style={{
+                    backgroundColor: "var(--v-surface-subtle)",
+                    borderColor: "var(--v-popover-border)",
+                    color: "var(--v-text)",
+                  }}
+                >
+                  {["English", "Norwegian", "German", "French", "Japanese", "Spanish"].map(
+                    (lang) => (
+                      <option key={lang} value={lang}>
+                        {lang}
+                      </option>
+                    ),
+                  )}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setTranslateBarOpen(false)}
+                  className="w-5 h-5 rounded-[4px] flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/8"
+                  style={{ color: "var(--v-muted)" }}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+
+            <div
+              className="w-full h-full"
+              style={{
+                zoom: pageZoom / 100,
+              }}
+            >
+              {renderViewportContent()}
+            </div>
+
+            {/* Subtle Action Feedback Toast */}
+            {toastMessage && (
+              <div
+                className="absolute bottom-4 right-4 z-40 px-3.5 py-2 rounded-[8px] border text-[12px] font-medium flex items-center gap-2"
+                style={{
+                  backgroundColor: "var(--v-popover)",
+                  borderColor: "var(--v-popover-border)",
+                  color: "var(--v-text)",
+                  boxShadow: "var(--v-shadow-popover)",
+                }}
+              >
+                <Check className="w-3.5 h-3.5" style={{ color: "var(--v-privacy)" }} />
+                <span>{toastMessage}</span>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Interactive Feature Dialogs (Passwords, Extensions, Delete Data, Task Manager, Account) */}
+        <BrowserFeatureDialogs
+          activeModal={featureModal}
+          activeProfile={activeProfile}
+          passwords={passwords}
+          extensions={extensions}
+          tabs={tabs}
+          onClose={() => setFeatureModal(null)}
+          onAddPassword={(domain, username, password) => {
+            setPasswords((prev) => [
+              {
+                id: `pw-${Date.now()}`,
+                domain,
+                username,
+                password,
+                updatedAt: "Just now",
+              },
+              ...prev,
+            ]);
+            showToast(`Saved login for ${domain}`);
+          }}
+          onDeletePassword={(id) => {
+            setPasswords((prev) => prev.filter((p) => p.id !== id));
+            showToast("Removed saved password");
+          }}
+          onToggleExtension={(id) => {
+            setExtensions((prev) =>
+              prev.map((ext) => (ext.id === id ? { ...ext, enabled: !ext.enabled } : ext)),
+            );
+          }}
+          onClearBrowsingData={({ history: delHist, downloads: delDl }) => {
+            if (delHist) setHistory([]);
+            if (delDl) setDownloads([]);
+            showToast("Selected browsing data deleted");
+          }}
+          onToggleTabSleep={(tabId) => {
+            setTabs((prev) =>
+              prev.map((t) =>
+                t.id === tabId
+                  ? { ...t, sleeping: !t.sleeping, memorySavedMb: t.memorySavedMb ?? 128 }
+                  : t,
+              ),
+            );
+          }}
+          onOpenSettings={() => {
+            openOrFocusInternalTab("settings");
+            setActivePreset("settings");
+          }}
+        />
 
         {/* Centered 3-Step First-Run Onboarding Modal over Blurred Backdrop */}
         {onboardingOpen && (

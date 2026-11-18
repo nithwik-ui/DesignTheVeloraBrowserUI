@@ -23,7 +23,9 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
         style={{ width: `${size}px`, height: `${size}px` }}
         title="Incognito Profile"
       >
-        <Glasses style={{ width: `${Math.round(size * 0.58)}px`, height: `${Math.round(size * 0.58)}px` }} />
+        <Glasses
+          style={{ width: `${Math.round(size * 0.58)}px`, height: `${Math.round(size * 0.58)}px` }}
+        />
       </span>
     );
   }
@@ -53,20 +55,16 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
             fill="#F8FAFC"
           />
           {/* Illuminated Golden Spire / Eiffel Silhouette */}
-          <path
-            d="M31.5 13L33.5 13L35 34L41 47L45 62H19L23 47L29 34L31.5 13Z"
-            fill="#EAB308"
-          />
+          <path d="M31.5 13L33.5 13L35 34L41 47L45 62H19L23 47L29 34L31.5 13Z" fill="#EAB308" />
           {/* Shaded Right Half of Spire for 3D depth */}
-          <path
-            d="M32.5 13H33.5L35 34L41 47L45 62H32.5V13Z"
-            fill="#1E1B4B"
-            opacity="0.58"
-          />
+          <path d="M32.5 13H33.5L35 34L41 47L45 62H32.5V13Z" fill="#1E1B4B" opacity="0.58" />
           {/* Structural horizontal decks & arch */}
           <rect x="27" y="34" width="10" height="2.4" rx="1" fill="#FACC15" />
           <rect x="23" y="46" width="18" height="2.8" rx="1" fill="#CA8A04" />
-          <path d="M24.5 62C24.5 55.5 28 52.5 32 52.5C36 52.5 39.5 55.5 39.5 62H24.5Z" fill="#0F1D5E" />
+          <path
+            d="M24.5 62C24.5 55.5 28 52.5 32 52.5C36 52.5 39.5 55.5 39.5 62H24.5Z"
+            fill="#0F1D5E"
+          />
         </svg>
       </span>
     );
